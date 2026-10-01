@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>eyeMEmory · die 0 · v3</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#02060a; --fg:#c8d8e8; --dim:#2a3a4a;
+    --gut:#39ff88; --warn:#ffaa00; --bad:#ff3ea5;
+    --cyan:#5cf0ff; --violet:#b388ff; --gold:#f0d080;
+  }
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--fg);
+    font:11px/1.5 Consolas,"Courier New",monospace;
+    overflow:hidden;
+    background-image:radial-gradient(ellipse at 50% 50%, #081420, #02060a 70%);
+  }
+  canvas{display:block;position:fixed;inset:0}
+
+  #kopf{
+    position:fixed;top:24px;left:50%;transform:translateX(-50%);
+    text-align:center;z-index:6;pointer-events:none;
+  }
+  #kopf h1{
+    font-size:14px;letter-spacing:6px;font-weight:400;
+    background:linear-gradient(90deg,var(--cyan),var(--violet),var(--gold));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  #kopf .sub{font-size:9px;letter-spacing:4px;color:var(--dim);margin-top:6px}
+
+  #drache{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:5;pointer-events:none;text-align:center;
+  }
+  #drache .wort{
+    font-size:clamp(28px,7vw,72px);font-weight:100;letter-spacing:.4em;
+    transition:color .8s, text-shadow .8s;
+  }
+  #drache .wort.zeigt{color:var(--cyan);text-shadow:0 0 50px var(--cyan)}
+  #drache .wort.bändigt{color:var(--violet);text-shadow:0 0 50px var(--violet)}
+  #drache .wort.verschanzt{color:var(--dim);text-shadow:none}
+
+  #zahl{
+    position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+    text-align:center;z-index:6;pointer-events:none;
+  }
+  #zahl .n{
+    font-size:clamp(20px,3.4vw,38px);font-weight:100;letter-spacing:.18em;
+    color:var(--gold);text-shadow:0 0 30px rgba(240,208,128,.3);
+  }
+  #zahl .l{font-size:9px;letter-spacing:.4em;color:var(--dim);margin-top:6px}
+
+  #seiten{
+    position:fixed;top:50%;transform:translateY(-50%);
+    z-index:6;pointer-events:none;font-size:9px;letter-spacing:.3em;
+    color:var(--dim);line-height:2.4;
+  }
+  #links{left:24px}
+  #rechts{right:24px;text-align:right}
+  #seiten .v{color:var(--cyan)}
+  #seiten .g{color:var(--gold)}
+  #seiten .p{color:var(--violet)}
+  #seiten .r{color:var(--bad)}
+
+  #fuss{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    font-size:9px;letter-spacing:.4em;color:var(--dim);
+    z-index:6;pointer-events:none;text-align:center;
+  }
+  #fuss b{color:var(--gut);font-weight:400}
+
+  .ecke{position:fixed;width:14px;height:14px;
+        z-index:998;pointer-events:none;opacity:.3;border-color:var(--cyan)}
+  .ecke.ol{top:12px;left:12px;border-top:1px solid;border-left:1px solid}
+  .ecke.or{top:12px;right:12px;border-top:1px solid;border-right:1px solid}
+  .ecke.ul{bottom:12px;left:12px;border-bottom:1px solid;border-left:1px solid}
+  .ecke.ur{bottom:12px;right:12px;border-bottom:1px solid;border-right:1px solid}
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<div id="kopf">
+  <h1>eyeMEmory</h1>
+  <div class="sub">die 0 · der anfang · nicht das nichts</div>
+</div>
+
+<div id="drache">
+  <div class="wort zeigt" id="dracheWort">zeigt</div>
+</div>
+
+<div id="zahl">
+  <div class="n" id="zahlN">0</div>
+  <div class="l">von 3 billionen</div>
+</div>
+
+<div id="seiten">
+  <div id="links">
+    <div>achse · <span class="v">d e i n o r s u w</span></div>
+    <div>felder · <span class="v">9 × 9 = 81</span></div>
+    <div>ringe · <span class="v">3 · 9 · 81</span></div>
+  </div>
+  <div id="rechts">
+    <div>tick · <span class="g" id="tick">0</span></div>
+    <div>schlag · <span class="p" id="schlag">0</span></div>
+    <div>wahrheit · <span class="r" id="wahrheit">—</span></div>
+  </div>
+</div>
+
+<div id="fuss">
+  zeigen · bändigen · verschanzen · <b>jede sekunde</b>
+</div>
+
+<div class="ecke ol"></div>
+<div class="ecke or"></div>
+<div class="ecke ul"></div>
+<div class="ecke ur"></div>
+
+<script>
+"use strict";
+
+/* ═══════════════════════════════════════════════════════════
+   eyeMEmory · die 0 · v3
+   ═══════════════════════════════════════════════════════════
+   Maxime: 9×9 · 3-9-81 · zeigt/bändigt/verschanzt · jede sekunde
+   Determinismus statt Zufall. Vektor statt Chaos.
+   ═══════════════════════════════════════════════════════════ */
+
+const ACHSE = ['d','e','i','n','o','r','s','u','w'];
+const ZAHLEN = [1,2,3,4,5,6,7,8,9];
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W, H, CX, CY;
+
+function resize(){
+  const dpr = Math.min(devicePixelRatio, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  CX = W/2; CY = H/2;
+}
+addEventListener('resize', resize); resize();
+
+/* ─── Zustand ────────────────────────────────────────────── */
+const S = {
+  t: 0,
+  tick: 0,
+  schlag: 0,
+  phase: 'zeigt',
+  phaseT: 0,
+  gedaechtnis: [],
+  puls: 0,
+  /* NEU: deterministische Sequenz */
+  seqIdx: 0,
+  /* NEU: goldener Winkel für Verteilung */
+  GOLDEN: Math.PI * (3 - Math.sqrt(5)),
+  /* NEU: Summe der 81 Werte = 2025 */
+  SUMME: 2025,
+  /* NEU: errechnete Wahrheit */
+  wahrheit: 0,
+};
+
+/* ─── Drei Phasen, je 4 Sekunden → 12 Sekunden Zyklus ─── */
+const PHASEN = [
+  { name: 'zeigt',      dauer: 4000, farbe: '#5cf0ff' },
+  { name: 'bändigt',    dauer: 4000, farbe: '#b388ff' },
+  { name: 'verschanzt', dauer: 4000, farbe: '#2a3a4a' },
+];
+
+/* ─── 81 Felder — das Gedächtnis · jetzt als echte Matrix ─ */
+const FELDER = [];
+for(let r = 0; r < 9; r++){
+  for(let c = 0; c < 9; c++){
+    FELDER.push({
+      r, c,
+      id: ACHSE[r] + (c+1),
+      wert: (r+1) * (c+1),
+      hell: 0,
+      /* NEU: Vektor-Position, deterministisch */
+      vx: (c - 4) * 1.0,
+      vy: (r - 4) * 1.0,
+    });
+  }
+}
+
+/* ─── DETERMINISTISCHER SCHLAG ───────────────────────────── */
+/* Statt Zufall: der goldene Winkel wählt das nächste Feld.
+   Jeder Schlag ist die Folge des vorigen. Kein Sprung. */
+function schlag(){
+  S.schlag++;
+  /* goldener Winkel → Index 0..80, deterministisch */
+  const idx = Math.floor((S.schlag * S.GOLDEN * 13) % 81);
+  const f = FELDER[idx];
+  f.hell = 1;
+  S.gedaechtnis.push({ id: f.id, zeit: Date.now(), idx });
+  if(S.gedaechtnis.length > 500) S.gedaechtnis.shift();
+
+  /* NEU: Wahrheit berechnen — nicht nur zählen */
+  const aktivSumme = S.gedaechtnis.reduce((a, g) => a + FELDER[g.idx].wert, 0);
+  S.wahrheit = S.SUMME > 0 ? (aktivSumme % S.SUMME) / S.SUMME : 0;
+}
+
+/* ─── Phase wechseln ──────────────────────────────────────── */
+function phaseWeiter(){
+  const i = PHASEN.findIndex(p => p.name === S.phase);
+  const next = PHASEN[(i + 1) % PHASEN.length];
+  S.phase = next.name;
+  S.phaseT = 0;
+
+  const w = document.getElementById('dracheWort');
+  w.classList.remove('zeigt','bändigt','verschanzt');
+  w.classList.add(next.name);
+  w.textContent = next.name;
+}
+
+/* ─── Die 0 wächst: alle 3 Sekunden +1 Billion ───────────── */
+let billionen = 0;
+const ZIEL = 3_000_000_000_000;
+
+setInterval(() => {
+  billionen += 1_000_000_000;
+  if(billionen > ZIEL) billionen = ZIEL;
+  document.getElementById('zahlN').textContent =
+    billionen.toLocaleString('de-DE');
+}, 3000);
+
+/* ─── Tick jede Sekunde ───────────────────────────────────── */
+setInterval(() => {
+  S.tick++;
+  document.getElementById('tick').textContent = S.tick;
+  document.getElementById('schlag').textContent = S.schlag;
+  /* NEU: Wahrheit anzeigen — nicht mehr "—", sondern berechnet */
+  document.getElementById('wahrheit').textContent =
+    `${(S.wahrheit * 100).toFixed(1)}%`;
+}, 1000);
+
+/* ─── Schlag alle 250ms ───────────────────────────────────── */
+setInterval(schlag, 250);
+
+/* ─── Konsole ─────────────────────────────────────────────── */
+console.log('');
+console.log('  eyeMEmory · die 0 · v3');
+console.log('  ─────────────────────────────────');
+console.log('  zeigt · bändigt · verschanzt');
+console.log('  jede sekunde ein tick');
+console.log('  9×9 felder · gedächtnis');
+console.log('  jede sekunde eine billion');
+console.log('  schlag: deterministisch (goldener Winkel)');
+console.log('  wahrheit: berechnet · summe = 2025');
+console.log('');
+
+/* ═══════════════════════════════════════════════════════════
+   ZEICHNEN
+   ═══════════════════════════════════════════════════════════ */
+
+function zeichne(){
+  requestAnimationFrame(zeichne);
+  S.t += 16;
+  S.phaseT += 16;
+
+  const phase = PHASEN.find(p => p.name === S.phase);
+  if(S.phaseT >= phase.dauer) phaseWeiter();
+
+  const p = S.phaseT / phase.dauer;
+
+  ctx.fillStyle = 'rgba(2,6,10,0.22)';
+  ctx.fillRect(0, 0, W, H);
+
+  /* ─── DAS AUGE ───────────────────────────────────── */
+  const atem = 0.5 + 0.5 * Math.sin(S.t * 0.0008);
+  const basisR = Math.min(W, H) * 0.13;
+  const augenR = basisR * (1 + atem * 0.05);
+
+  const irisGlut = ctx.createRadialGradient(CX, CY, 0, CX, CY, augenR);
+  const irisFarbe = phase.farbe;
+  irisGlut.addColorStop(0, hexAlpha(irisFarbe, 0.55));
+  irisGlut.addColorStop(0.6, hexAlpha(irisFarbe, 0.15));
+  irisGlut.addColorStop(1, hexAlpha(irisFarbe, 0));
+  ctx.beginPath();
+  ctx.arc(CX, CY, augenR, 0, Math.PI*2);
+  ctx.fillStyle = irisGlut;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(CX, CY, augenR, 0, Math.PI*2);
+  ctx.strokeStyle = hexAlpha(irisFarbe, 0.35);
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const pupilleR = augenR * (0.22 + 0.06 * Math.sin(S.t * 0.003));
+  ctx.beginPath();
+  ctx.arc(CX, CY, pupilleR, 0, Math.PI*2);
+  ctx.fillStyle = '#02060a';
+  ctx.fill();
+  ctx.strokeStyle = hexAlpha(irisFarbe, 0.8);
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(CX, CY, 2.5, 0, Math.PI*2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  /* ─── DIE NEUN BUCHSTABEN ───────────────────────── */
+  const achseR = augenR * 2.1;
+  ACHSE.forEach((b, i) => {
+    const a = (i / 9) * Math.PI * 2 - Math.PI/2 + S.t * 0.00015;
+    const x = CX + Math.cos(a) * achseR;
+    const y = CY + Math.sin(a) * achseR;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI*2);
+    ctx.fillStyle = hexAlpha(irisFarbe, 0.6);
+    ctx.fill();
+
+    ctx.font = '11px Consolas';
+    ctx.fillStyle = hexAlpha(irisFarbe, 0.85);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b, x, y + 14);
+  });
+
+  /* ─── DAS GEDÄCHTNIS · 81 Felder als Matrix ─────── */
+  /* NEU: echte 9×9-Matrix, nicht spiralförmig.
+     Jedes Feld hat seine feste Position. */
+  const feldR = achseR * 1.7;
+  const feldStep = 7;
+
+  FELDER.forEach(f => {
+    f.hell = Math.max(0, f.hell - 0.02);
+
+    /* Vektor-Position: feste Matrix */
+    const x = CX + f.vx * feldStep;
+    const y = CY + f.vy * feldStep;
+
+    const sicht = 0.05 + f.hell * 0.95;
+    if(sicht < 0.08) return;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 1.2 + f.hell * 1.8, 0, Math.PI*2);
+    ctx.fillStyle = f.hell > 0.1
+      ? hexAlpha('#39ff88', f.hell)
+      : hexAlpha(irisFarbe, 0.15);
+    ctx.fill();
+  });
+
+  /* ─── DER DRACHE ─────────────────────────────────── */
+  const dracheStärke =
+    S.phase === 'zeigt'      ? 1.0 :
+    S.phase === 'bändigt'    ? 0.6 :
+                               0.15;
+
+  const dracheR = augenR * (1.6 + 0.4 * Math.sin(S.t * 0.0006));
+  const segmente = 24;
+
+  for(let i = 0; i < segmente; i++){
+    const a = (i / segmente) * Math.PI * 2 + S.t * 0.0004 * (1 + p);
+    const rr = dracheR + Math.sin(S.t * 0.001 + i * 0.5) * 6;
+    const x = CX + Math.cos(a) * rr;
+    const y = CY + Math.sin(a) * rr;
+
+    const stärke = dracheStärke * (0.4 + 0.6 * Math.sin(i * 0.3));
+    if(stärke < 0.05) continue;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 2 + stärke * 2.5, 0, Math.PI*2);
+    ctx.fillStyle = hexAlpha(irisFarbe, stärke * 0.7);
+    ctx.fill();
+  }
+
+  /* ─── PULS-LINIE · die billion ───────────────────── */
+  S.puls += 0.02;
+  if(S.puls > 1) S.puls -= 1;
+  const pulsR = augenR * 3 * (1 - S.puls);
+  ctx.beginPath();
+  ctx.arc(CX, CY, pulsR, 0, Math.PI*2);
+  ctx.strokeStyle = hexAlpha('#f0d080', 0.12 * (1 - S.puls));
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  /* Wahrheit anzeigen */
+  document.getElementById('wahrheit').textContent =
+    `${S.gedaechtnis.length} · ${S.phase}`;
+
+  /* Hintergrund-atmung */
+  const bg = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W, H));
+  bg.addColorStop(0, hexAlpha(irisFarbe, 0.02));
+  bg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function hexAlpha(hex, a){
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+/* Ausgangspunkt: die 0 */
+document.getElementById('zahlN').textContent = '0';
+
+zeichne();
+
+/* Selbstauskunft */
+window.EYE = {
+  state: () => ({
+    tick: S.tick,
+    schlag: S.schlag,
+    phase: S.phase,
+    gedaechtnis: S.gedaechtnis.length,
+    billionen,
+    wahrheit: S.wahrheit,
+  }),
+  felder: () => FELDER,
+  achse: () => ACHSE,
+  dieEineZahl: () => billionen,
+  /* NEU: Wahrheit direkt abrufbar */
+  summe: () => S.SUMME,
+  wahrheitProzent: () => S.wahrheit * 100,
+};
+</script>
+</body>
+</html>
